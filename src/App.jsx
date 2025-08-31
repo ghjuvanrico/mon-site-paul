@@ -73,7 +73,7 @@ function PasswordGate({ onUnlock }) {
         </button>
 
         <div className="gate-hint">
-          Astuce : définis <code>VITE_SITE_PASSWORD</code> dans un fichier <code>.env</code> à la racine.
+          <code></code>  <code></code> 
         </div>
       </div>
     </div>
