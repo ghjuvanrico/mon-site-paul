@@ -11,7 +11,7 @@ body {
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 80px; /* pour compenser la navbar fixe lors des ancres (#contact, etc.) */
+  scroll-padding-top: 80px; /* compense la navbar fixe */
 }
 
 /* ===================
@@ -272,6 +272,8 @@ html {
   border-radius: 10px;
   padding: 12px 14px;
   outline: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 .form-row input:focus,
 .form-row textarea:focus {
@@ -279,6 +281,14 @@ html {
   box-shadow: 0 0 0 3px rgba(128,205,243,0.15);
 }
 
+/* corrige le textarea (pas de déformation horizontale) */
+.form-row textarea {
+  resize: vertical;
+  min-height: 140px;
+  max-height: 50vh;
+}
+
+/* bouton envoyer */
 .send-btn {
   background: #f7b42c;
   color: #232a21;
@@ -292,6 +302,7 @@ html {
 }
 .send-btn:hover { background: #ffd684; }
 
+/* messages d’état */
 .form-msg {
   margin-top: 12px;
   padding: 10px 12px;
@@ -309,7 +320,9 @@ html {
   border: 1px solid rgba(255,177,177,0.25);
 }
 
-/* cache le champ anti-bot */
+/* ====================
+   Anti-bot
+   ==================== */
 .hp-field {
   display: none !important;
   visibility: hidden !important;
