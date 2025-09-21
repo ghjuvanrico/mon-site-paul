@@ -122,21 +122,13 @@ function Home() {
       {/* SPECTACLES : image principale = prochain spectacle si dispo */}
       <section id="spectacles" className="section section-spectacle-hero">
         <div className="spectacle-hero">
-          <div className="spectacle-hero-img-wrap">
-            <img
-              src={nextPoster?.src || spectacleMain}
-              alt={nextPoster ? (nextPoster.title || 'Prochain spectacle') : 'Spectacle'}
-              className="spectacle-hero-img"
-            />
-            {nextPoster && (
-              <div className="next-badge">
-                <span className="next-badge-title">Prochain spectacle</span>
-                <span className="next-badge-date">{formatDateFR(nextPoster.date)}</span>
-                {nextPoster.title && <span className="next-badge-sub">{nextPoster.title}</span>}
-              </div>
-            )}
-          </div>
-
+                <div className="spectacle-hero-img-wrap">
+                  <img
+                    src={nextPoster?.src || spectacleMain}
+                    alt="Spectacle"
+                    className="spectacle-hero-img"
+                  />
+                </div>
           <div className="spectacle-hero-content">
             <h2>Spectacles</h2>
             <p>
