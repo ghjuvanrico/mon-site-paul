@@ -9,140 +9,91 @@ import 'swiper/css/pagination';
 import portrait from './assets/portrait.jpg';
 import spectacleMain from './assets/spectacle-main.jpg';
 
-/* =======================
-   Password Gate (client)
-   ======================= */
-
-const FALLBACK_PASSWORD = 'mon-mdp-ici'; // ← change-moi si tu veux un mdp en dur
-const ENV_PASSWORD = import.meta.env.VITE_SITE_PASSWORD; // ← ou mets VITE_SITE_PASSWORD=xxx dans .env
-
-function PasswordGate({ onUnlock }) {
-  const [pwd, setPwd] = useState('');
-  const [error, setError] = useState('');
-  const [show, setShow] = useState(false);
-
-  const realPassword = (ENV_PASSWORD && String(ENV_PASSWORD)) || FALLBACK_PASSWORD;
-
-  function tryUnlock() {
-    if (!pwd) {
-      setError('Veuillez saisir le mot de passe.');
-      return;
-    }
-    if (pwd === realPassword) {
-      sessionStorage.setItem('site_authed', '1');
-      onUnlock();
-    } else {
-      setError('Mot de passe incorrect.');
-    }
-  }
-
-  function onKeyDown(e) {
-    if (e.key === 'Enter') tryUnlock();
-  }
-
-  return (
-    <div className="gate-overlay">
-      <div className="gate-modal" role="dialog" aria-modal="true" aria-labelledby="gate-title">
-        <h2 id="gate-title">Accès protégé</h2>
-        <p className="gate-subtitle">Entrez le mot de passe pour accéder au site.</p>
-
-        <div className="gate-input-row">
-          <input
-            type={show ? 'text' : 'password'}
-            className="gate-input"
-            placeholder="Mot de passe"
-            value={pwd}
-            onChange={(e) => setPwd(e.target.value)}
-            onKeyDown={onKeyDown}
-            autoFocus
-          />
-          <button
-            type="button"
-            className="gate-toggle"
-            onClick={() => setShow(!show)}
-            aria-label={show ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-          >
-            {show ? '🙈' : '👁️'}
-          </button>
-        </div>
-
-        {error && <div className="gate-error">{error}</div>}
-
-        <button type="button" className="gate-submit" onClick={tryUnlock}>
-          Entrer
-        </button>
-
-        <div className="gate-hint">
-          <code></code>  <code></code> 
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function usePasswordGate() {
-  const [authed, setAuthed] = useState(false);
-
-  useEffect(() => {
-    const ok = sessionStorage.getItem('site_authed') === '1';
-    setAuthed(ok);
-  }, []);
-
-  return { authed, unlock: () => setAuthed(true) };
-}
-
-/* ==============
-   Données médias
-   ============== */
-
-// Galerie "spectacles" (carrousel facultatif de la home)
+// Galerie "spectacles" (home)
 const spectacleModules = import.meta.glob('./assets/spectacles/*.{jpg,jpeg,png}', { eager: true });
 const spectacleImages = Object.entries(spectacleModules).map(([path, mod]) => {
-  const parts = path.split('/');
-  const file = parts[parts.length - 1];
+  const file = path.split('/').pop();
   const base = file.split('.')[0];
-  return {
-    src: typeof mod === 'string' ? mod : mod?.default,
-    name: base,
-  };
+  return { src: typeof mod === 'string' ? mod : mod?.default, name: base };
 });
 
-// AFFICHES : dans src/assets/spectacle/affiches
+// AFFICHES (servira pour “/affiches” ET pour “prochain spectacle” dans le hero)
 const postersModules = import.meta.glob('./assets/spectacle/affiches/*.{jpg,jpeg,png}', { eager: true });
+
+/* --------- util date depuis nom de fichier ---------
+   Accepte:
+   - 2025-12-05_titre.jpg
+   - 05-12-2025_titre.jpg
+   Renvoie { date, title }
+----------------------------------------------------*/
+function parseFromFilename(fileBase) {
+  // YYYY-MM-DD
+  let m = fileBase.match(/^(\d{4})[-_.](\d{2})[-_.](\d{2})(?:[-_.](.*))?$/);
+  if (m) {
+    const date = new Date(`${m[1]}-${m[2]}-${m[3]}`);
+    const title = (m[4] || '').replace(/[-_.]/g, ' ').trim();
+    return { date: isNaN(date) ? null : date, title };
+  }
+  // DD-MM-YYYY
+  m = fileBase.match(/^(\d{2})[-_.](\d{2})[-_.](\d{4})(?:[-_.](.*))?$/);
+  if (m) {
+    const date = new Date(`${m[3]}-${m[2]}-${m[1]}`);
+    const title = (m[4] || '').replace(/[-_.]/g, ' ').trim();
+    return { date: isNaN(date) ? null : date, title };
+  }
+  return { date: null, title: '' };
+}
+
+function formatDateFR(date) {
+  if (!date) return '';
+  return date.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
 
 /* =========
    Home Page
    ========= */
-
 function Home() {
   const navigate = useNavigate();
   const swiperRef = useRef(null);
   const [currentDoc, setCurrentDoc] = useState(null);
 
+  // Construire la liste des affiches pour trouver le “prochain”
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const posters = Object.entries(postersModules).map(([path, mod]) => {
+    const file = path.split('/').pop();                 // ex: 2025-12-05_mon-event.png
+    const base = file.replace(/\.(jpg|jpeg|png)$/i, '');
+    const { date, title } = parseFromFilename(base);
+    const src = typeof mod === 'string' ? mod : mod?.default;
+    return { src, date, title };
+  }).filter(p => p.date);
+
+  const nextPoster = posters
+    .filter(p => p.date >= today)
+    .sort((a, b) => a.date - b.date)[0] || null;
+
   function showDescription(name, index) {
     setCurrentDoc(null);
-    if (swiperRef.current && swiperRef.current.swiper) {
+    if (swiperRef.current?.swiper) {
       swiperRef.current.swiper.slideToLoop(index, 400, false);
       swiperRef.current.swiper.autoplay.stop();
     }
     const pdfUrl = `/spectacle_descriptions/${name}.pdf`;
     const docxUrl = `/spectacle_descriptions/${name}.docx`;
 
-    fetch(pdfUrl, { method: 'HEAD' })
-      .then(res => {
-        if (res.ok) setCurrentDoc({ type: 'pdf', url: pdfUrl });
-        else {
-          fetch(docxUrl, { method: 'HEAD' }).then(res2 => {
-            if (res2.ok) setCurrentDoc({ type: 'docx', url: docxUrl });
-            else setCurrentDoc({ type: 'none' });
-          });
-        }
-      });
+    fetch(pdfUrl, { method: 'HEAD' }).then(res => {
+      if (res.ok) setCurrentDoc({ type: 'pdf', url: pdfUrl });
+      else {
+        fetch(docxUrl, { method: 'HEAD' }).then(res2 => {
+          if (res2.ok) setCurrentDoc({ type: 'docx', url: docxUrl });
+          else setCurrentDoc({ type: 'none' });
+        });
+      }
+    });
   }
 
   function closeDescription() {
     setCurrentDoc(null);
-    if (swiperRef.current && swiperRef.current.swiper) {
+    if (swiperRef.current?.swiper) {
       swiperRef.current.swiper.autoplay.start();
     }
   }
@@ -168,10 +119,24 @@ function Home() {
         </div>
       </section>
 
-      {/* SPECTACLES : image gauche + texte + bouton */}
+      {/* SPECTACLES : image principale = prochain spectacle si dispo */}
       <section id="spectacles" className="section section-spectacle-hero">
         <div className="spectacle-hero">
-          <img src={spectacleMain} alt="Spectacle" className="spectacle-hero-img" />
+          <div className="spectacle-hero-img-wrap">
+            <img
+              src={nextPoster?.src || spectacleMain}
+              alt={nextPoster ? (nextPoster.title || 'Prochain spectacle') : 'Spectacle'}
+              className="spectacle-hero-img"
+            />
+            {nextPoster && (
+              <div className="next-badge">
+                <span className="next-badge-title">Prochain spectacle</span>
+                <span className="next-badge-date">{formatDateFR(nextPoster.date)}</span>
+                {nextPoster.title && <span className="next-badge-sub">{nextPoster.title}</span>}
+              </div>
+            )}
+          </div>
+
           <div className="spectacle-hero-content">
             <h2>Spectacles</h2>
             <p>
@@ -191,7 +156,7 @@ function Home() {
         <p>À venir...</p>
       </section>
 
-      {/* GALERIE carrousel de la home (optionnel) */}
+      {/* GALERIE (optionnel) */}
       <section className="section">
         <h2>Galerie spectacles</h2>
         <div className="carousel-wrapper">
@@ -259,17 +224,11 @@ function Home() {
    Page : AFFICHES
    ================= */
 function PostersPage() {
-  // parse YYYY-MM-DD or DD-MM-YYYY
   function parseDateFromName(base) {
-    const m1 = base.match(/^(\d{4})[-_.](\d{2})[-_.](\d{2})/);
-    if (m1) return new Date(`${m1[1]}-${m1[2]}-${m1[3]}`);
-    const m2 = base.match(/^(\d{2})[-_.](\d{2})[-_.](\d{4})/);
-    if (m2) return new Date(`${m2[3]}-${m2[2]}-${m2[1]}`);
-    return null;
+    return parseFromFilename(base).date;
   }
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
 
   const posters = Object.entries(postersModules).map(([path, mod]) => {
     const file = path.split('/').pop();
@@ -316,16 +275,9 @@ function PostersPage() {
   );
 }
 
-/* ==========================
-   App racine + PasswordGate
-   ========================== */
 export default function RootApp() {
-  const { authed, unlock } = usePasswordGate();
-
-  if (!authed) {
-    return <PasswordGate onUnlock={unlock} />;
-  }
-
+  // Mot de passe : si tu as gardé la gate, conserve ton code précédent.
+  // Ici on affiche directement le site (tu peux remettre la gate si besoin).
   return (
     <Router>
       <Routes>
