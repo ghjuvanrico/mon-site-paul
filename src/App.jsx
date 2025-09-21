@@ -1,102 +1,45 @@
 import './App.css';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Link } from 'react-router-dom';
-import { useRef, useState, useEffect } from 'react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Pagination, Autoplay } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/pagination';
+import { useMemo, useState } from 'react';
 
 import portrait from './assets/portrait.jpg';
 import spectacleMain from './assets/spectacle-main.jpg';
 
-// Galerie "spectacles" (home)
-const spectacleModules = import.meta.glob('./assets/spectacles/*.{jpg,jpeg,png}', { eager: true });
-const spectacleImages = Object.entries(spectacleModules).map(([path, mod]) => {
-  const file = path.split('/').pop();
-  const base = file.split('.')[0];
-  return { src: typeof mod === 'string' ? mod : mod?.default, name: base };
-});
-
-// AFFICHES (servira pour “/affiches” ET pour “prochain spectacle” dans le hero)
+// AFFICHES : dans src/assets/spectacle/affiches
 const postersModules = import.meta.glob('./assets/spectacle/affiches/*.{jpg,jpeg,png}', { eager: true });
 
-/* --------- util date depuis nom de fichier ---------
-   Accepte:
-   - 2025-12-05_titre.jpg
-   - 05-12-2025_titre.jpg
-   Renvoie { date, title }
-----------------------------------------------------*/
 function parseFromFilename(fileBase) {
   // YYYY-MM-DD
   let m = fileBase.match(/^(\d{4})[-_.](\d{2})[-_.](\d{2})(?:[-_.](.*))?$/);
-  if (m) {
-    const date = new Date(`${m[1]}-${m[2]}-${m[3]}`);
-    const title = (m[4] || '').replace(/[-_.]/g, ' ').trim();
-    return { date: isNaN(date) ? null : date, title };
-  }
+  if (m) return { date: new Date(`${m[1]}-${m[2]}-${m[3]}`), title: (m[4] || '').replace(/[-_.]/g, ' ').trim() };
   // DD-MM-YYYY
   m = fileBase.match(/^(\d{2})[-_.](\d{2})[-_.](\d{4})(?:[-_.](.*))?$/);
-  if (m) {
-    const date = new Date(`${m[3]}-${m[2]}-${m[1]}`);
-    const title = (m[4] || '').replace(/[-_.]/g, ' ').trim();
-    return { date: isNaN(date) ? null : date, title };
-  }
+  if (m) return { date: new Date(`${m[3]}-${m[2]}-${m[1]}`), title: (m[4] || '').replace(/[-_.]/g, ' ').trim() };
   return { date: null, title: '' };
 }
 
-function formatDateFR(date) {
-  if (!date) return '';
-  return date.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-}
-
 /* =========
-   Home Page
+   Accueil
    ========= */
 function Home() {
   const navigate = useNavigate();
-  const swiperRef = useRef(null);
-  const [currentDoc, setCurrentDoc] = useState(null);
 
-  // Construire la liste des affiches pour trouver le “prochain”
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const posters = Object.entries(postersModules).map(([path, mod]) => {
-    const file = path.split('/').pop();                 // ex: 2025-12-05_mon-event.png
-    const base = file.replace(/\.(jpg|jpeg|png)$/i, '');
-    const { date, title } = parseFromFilename(base);
-    const src = typeof mod === 'string' ? mod : mod?.default;
-    return { src, date, title };
-  }).filter(p => p.date);
+  // Image principale = affiche la plus proche dans le futur, sinon spectacleMain
+  const today = useMemo(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+  }, []);
 
-  const nextPoster = posters
-    .filter(p => p.date >= today)
-    .sort((a, b) => a.date - b.date)[0] || null;
-
-  function showDescription(name, index) {
-    setCurrentDoc(null);
-    if (swiperRef.current?.swiper) {
-      swiperRef.current.swiper.slideToLoop(index, 400, false);
-      swiperRef.current.swiper.autoplay.stop();
-    }
-    const pdfUrl = `/spectacle_descriptions/${name}.pdf`;
-    const docxUrl = `/spectacle_descriptions/${name}.docx`;
-
-    fetch(pdfUrl, { method: 'HEAD' }).then(res => {
-      if (res.ok) setCurrentDoc({ type: 'pdf', url: pdfUrl });
-      else {
-        fetch(docxUrl, { method: 'HEAD' }).then(res2 => {
-          if (res2.ok) setCurrentDoc({ type: 'docx', url: docxUrl });
-          else setCurrentDoc({ type: 'none' });
-        });
-      }
-    });
-  }
-
-  function closeDescription() {
-    setCurrentDoc(null);
-    if (swiperRef.current?.swiper) {
-      swiperRef.current.swiper.autoplay.start();
-    }
-  }
+  const nextPoster = useMemo(() => {
+    const posters = Object.entries(postersModules).map(([path, mod]) => {
+      const file = path.split('/').pop();
+      const base = file.replace(/\.(jpg|jpeg|png)$/i, '');
+      const { date } = parseFromFilename(base);
+      const src = typeof mod === 'string' ? mod : mod?.default;
+      return { src, date };
+    }).filter(p => p.date && !isNaN(p.date));
+    const future = posters.filter(p => p.date >= today).sort((a, b) => a.date - b.date);
+    return future[0] || null;
+  }, [today]);
 
   return (
     <>
@@ -119,16 +62,17 @@ function Home() {
         </div>
       </section>
 
-      {/* SPECTACLES : image principale = prochain spectacle si dispo */}
+      {/* SPECTACLES : image principale (sans badge) */}
       <section id="spectacles" className="section section-spectacle-hero">
         <div className="spectacle-hero">
-                <div className="spectacle-hero-img-wrap">
-                  <img
-                    src={nextPoster?.src || spectacleMain}
-                    alt="Spectacle"
-                    className="spectacle-hero-img"
-                  />
-                </div>
+          <div className="spectacle-hero-img-wrap">
+            <img
+              src={nextPoster?.src || spectacleMain}
+              alt="Spectacle"
+              className="spectacle-hero-img"
+            />
+          </div>
+
           <div className="spectacle-hero-content">
             <h2>Spectacles</h2>
             <p>
@@ -148,66 +92,8 @@ function Home() {
         <p>À venir...</p>
       </section>
 
-      {/* GALERIE (optionnel) */}
-      <section className="section">
-        <h2>Galerie spectacles</h2>
-        <div className="carousel-wrapper">
-          <Swiper
-            modules={[Pagination, Autoplay]}
-            ref={swiperRef}
-            pagination={{ clickable: true }}
-            autoplay={{ delay: 3000, disableOnInteraction: false }}
-            loop={true}
-            centeredSlides={true}
-            slidesPerView={'auto'}
-            spaceBetween={36}
-            className="mySwiper"
-          >
-            {spectacleImages.map(({ src, name }, index) => (
-              <SwiperSlide key={index} className="peek-slide">
-                <div className="slide-img-wrapper">
-                  <img src={src} alt={`Spectacle ${index + 1}`} />
-                  <button className="more-button" onClick={() => showDescription(name, index)}>
-                    En savoir plus
-                  </button>
-                </div>
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        </div>
-
-        {currentDoc && (
-          <div className="veillee-description noselect">
-            <button className="close-desc" onClick={closeDescription} aria-label="Fermer">×</button>
-            {currentDoc.type === 'pdf' && (
-              <iframe
-                src={currentDoc.url}
-                title="Description PDF"
-                className="veillee-pdf-iframe"
-                allow="clipboard-write"
-              ></iframe>
-            )}
-            {currentDoc.type === 'docx' && (
-              <div className="desc-word">
-                <p>
-                  <b>Description Word :</b><br />
-                  <a href={currentDoc.url} target="_blank" rel="noopener noreferrer">
-                    Télécharger / Ouvrir dans Word
-                  </a>
-                </p>
-              </div>
-            )}
-            {currentDoc.type === 'none' && (
-              <div className="desc-missing"><em>Description indisponible.</em></div>
-            )}
-          </div>
-        )}
-      </section>
-
-      <section id="contact" className="section">
-        <h2>Contact</h2>
-        <p>Formulaire ici...</p>
-      </section>
+      {/* CONTACT */}
+      <ContactSection />
     </>
   );
 }
@@ -216,22 +102,18 @@ function Home() {
    Page : AFFICHES
    ================= */
 function PostersPage() {
-  function parseDateFromName(base) {
-    return parseFromFilename(base).date;
-  }
-
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0,0,0,0);
 
   const posters = Object.entries(postersModules).map(([path, mod]) => {
     const file = path.split('/').pop();
     const base = file.replace(/\.(jpg|jpeg|png)$/i, '');
-    const date = parseDateFromName(base);
+    const { date } = parseFromFilename(base);
     const src = typeof mod === 'string' ? mod : mod?.default;
     const isPast = !!date && date < today;
     return { src, date, isPast };
   })
-    .filter(p => p.date)
-    .sort((a, b) => b.date - a.date);
+  .filter(p => p.date)
+  .sort((a, b) => b.date - a.date);
 
   return (
     <>
@@ -267,9 +149,102 @@ function PostersPage() {
   );
 }
 
+/* ================
+   Contact Section
+   ================ */
+function ContactSection() {
+  // anti-bot: honeypot + petite addition
+  const [hp, setHp] = useState(''); // honeypot (doit rester vide)
+  const [a] = useState(() => Math.floor(2 + Math.random() * 7));
+  const [b] = useState(() => Math.floor(2 + Math.random() * 7));
+  const [answer, setAnswer] = useState('');
+
+  const [form, setForm] = useState({ name: '', email: '', message: '' });
+  const [state, setState] = useState({ sending: false, ok: null, msg: '' });
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    if (hp) { setState({ sending: false, ok: false, msg: "Échec validation anti-bot." }); return; }
+    if (Number(answer) !== a + b) {
+      setState({ sending: false, ok: false, msg: "Réponse anti-bot incorrecte." }); return;
+    }
+    if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
+      setState({ sending: false, ok: false, msg: "Merci de compléter tous les champs." }); return;
+    }
+
+    try {
+      setState({ sending: true, ok: null, msg: '' });
+      const res = await fetch('/contact-endpoint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          message: form.message,
+          antibot: { a, b, answer },
+          hp,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.ok) {
+        setState({ sending: false, ok: true, msg: 'Message envoyé. Merci !' });
+        setForm({ name: '', email: '', message: '' });
+        setAnswer('');
+      } else {
+        setState({ sending: false, ok: false, msg: data?.error || 'Erreur lors de l’envoi.' });
+      }
+    } catch {
+      setState({ sending: false, ok: false, msg: 'Erreur réseau.' });
+    }
+  }
+
+  return (
+    <section id="contact" className="section contact-section">
+      <h2>Contact</h2>
+
+      <form className="contact-card" onSubmit={onSubmit} noValidate>
+        <input
+          type="text" className="hp-field" autoComplete="off"
+          value={hp} onChange={(e) => setHp(e.target.value)}
+          tabIndex={-1} aria-hidden="true"
+        />
+
+        <div className="form-row">
+          <label htmlFor="name">Nom / Prénom</label>
+          <input id="name" type="text" placeholder="Votre nom complet"
+            value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+        </div>
+
+        <div className="form-row">
+          <label htmlFor="email">E-mail</label>
+          <input id="email" type="email" placeholder="votre@email.com"
+            value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+        </div>
+
+        <div className="form-row">
+          <label htmlFor="message">Message</label>
+          <textarea id="message" placeholder="Votre message…" rows={6}
+            value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} required />
+        </div>
+
+        <div className="form-row antibot-row">
+          <label htmlFor="antibot">Anti-bot : {a} + {b} = ?</label>
+          <input id="antibot" type="number" inputMode="numeric" placeholder="Votre réponse"
+            value={answer} onChange={(e) => setAnswer(e.target.value)} required />
+        </div>
+
+        <button className="send-btn" type="submit" disabled={state.sending}>
+          {state.sending ? 'Envoi…' : 'Envoyer'}
+        </button>
+
+        {state.ok === true && <div className="form-msg ok">{state.msg}</div>}
+        {state.ok === false && <div className="form-msg err">{state.msg}</div>}
+      </form>
+    </section>
+  );
+}
+
 export default function RootApp() {
-  // Mot de passe : si tu as gardé la gate, conserve ton code précédent.
-  // Ici on affiche directement le site (tu peux remettre la gate si besoin).
   return (
     <Router>
       <Routes>
