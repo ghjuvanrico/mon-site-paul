@@ -5,15 +5,16 @@ import { useMemo, useState } from 'react';
 import portrait from './assets/portrait.jpg';
 import spectacleMain from './assets/spectacle-main.jpg';
 
-// Affiches pour l'image principale (prend la plus proche dans le futur si dispo)
+// AFFICHES : images dans src/assets/spectacle/affiches
 const postersModules = import.meta.glob('./assets/spectacle/affiches/*.{jpg,jpeg,png}', { eager: true });
 
+// Parse date depuis nom de fichier : "YYYY-MM-DD_titre.jpg" ou "DD-MM-YYYY_titre.jpg"
 function parseFromFilename(fileBase) {
   let m = fileBase.match(/^(\d{4})[-_.](\d{2})[-_.](\d{2})(?:[-_.](.*))?$/);
-  if (m) return { date: new Date(`${m[1]}-${m[2]}-${m[3]}`) };
+  if (m) return { date: new Date(`${m[1]}-${m[2]}-${m[3]}`), title: (m[4] || '').replace(/[-_.]/g, ' ').trim() };
   m = fileBase.match(/^(\d{2})[-_.](\d{2})[-_.](\d{4})(?:[-_.](.*))?$/);
-  if (m) return { date: new Date(`${m[3]}-${m[2]}-${m[1]}`) };
-  return { date: null };
+  if (m) return { date: new Date(`${m[3]}-${m[2]}-${m[1]}`), title: (m[4] || '').replace(/[-_.]/g, ' ').trim() };
+  return { date: null, title: '' };
 }
 
 /* =========
@@ -22,25 +23,25 @@ function parseFromFilename(fileBase) {
 function Home() {
   const navigate = useNavigate();
 
-  // choisit une affiche future pour l’image principale (sinon fallback)
+  // Image principale = affiche future la plus proche (sinon spectacleMain)
   const today = useMemo(() => {
-    const d = new Date(); d.setHours(0,0,0,0); return d;
+    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
   }, []);
+
   const nextPoster = useMemo(() => {
-    const posters = Object.entries(postersModules).map(([p, mod]) => {
-      const file = p.split('/').pop();
-      const base = file.replace(/\.(jpg|jpeg|png)$/i,'');
+    const posters = Object.entries(postersModules).map(([path, mod]) => {
+      const file = path.split('/').pop();
+      const base = file.replace(/\.(jpg|jpeg|png)$/i, '');
       const { date } = parseFromFilename(base);
       const src = typeof mod === 'string' ? mod : mod?.default;
       return { src, date };
     }).filter(p => p.date && !isNaN(p.date));
-    const future = posters.filter(p => p.date >= today).sort((a,b)=>a.date-b.date);
+    const future = posters.filter(p => p.date >= today).sort((a, b) => a.date - b.date);
     return future[0] || null;
   }, [today]);
 
   return (
     <>
-      {/* NAVBAR : les liens #… scrollent vers les sections */}
       <nav className="navbar">
         <div className="nav-left">L’amitié des veillées</div>
         <ul className="nav-right">
@@ -51,7 +52,6 @@ function Home() {
         </ul>
       </nav>
 
-      {/* ACCUEIL */}
       <section id="accueil" className="section accueil">
         <img src={portrait} alt="Portrait" className="portrait" />
         <div className="content">
@@ -61,7 +61,7 @@ function Home() {
         </div>
       </section>
 
-      {/* SPECTACLES */}
+      {/* SPECTACLES : image principale (sans badge) */}
       <section id="spectacles" className="section section-spectacle-hero">
         <div className="spectacle-hero">
           <div className="spectacle-hero-img-wrap">
@@ -91,7 +91,7 @@ function Home() {
         <p>À venir...</p>
       </section>
 
-      {/* CONTACT (formulaire simple, sans envoi serveur) */}
+      {/* CONTACT */}
       <ContactSection />
     </>
   );
@@ -101,7 +101,7 @@ function Home() {
    Page : AFFICHES
    ================= */
 function PostersPage() {
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
 
   const posters = Object.entries(postersModules).map(([path, mod]) => {
     const file = path.split('/').pop();
@@ -111,8 +111,8 @@ function PostersPage() {
     const isPast = !!date && date < today;
     return { src, date, isPast };
   })
-  .filter(p => p.date)
-  .sort((a, b) => b.date - a.date);
+    .filter(p => p.date)
+    .sort((a, b) => b.date - a.date);
 
   return (
     <>
@@ -153,18 +153,32 @@ function PostersPage() {
    ================ */
 function ContactSection() {
   const [form, setForm] = useState({ name: '', email: '', message: '' });
-  const [state, setState] = useState({ ok: null, msg: '' });
+  const [state, setState] = useState({ sending: false, ok: null, msg: '' });
 
-  function onSubmit(e) {
+  async function onSubmit(e) {
     e.preventDefault();
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
-      setState({ ok: false, msg: 'Merci de compléter tous les champs.' });
+      setState({ sending: false, ok: false, msg: 'Merci de compléter tous les champs.' });
       return;
     }
-    // Pas d’envoi pour l’instant : on affiche juste une confirmation locale
-    setState({ ok: true, msg: 'Merci ! Votre message a bien été saisi.' });
-    // Optionnel: vider le formulaire
-    setForm({ name: '', email: '', message: '' });
+
+    try {
+      setState({ sending: true, ok: null, msg: '' });
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data?.ok) {
+        setState({ sending: false, ok: true, msg: 'Message envoyé. Merci !' });
+        setForm({ name: '', email: '', message: '' });
+      } else {
+        setState({ sending: false, ok: false, msg: data?.error || 'Erreur lors de l’envoi.' });
+      }
+    } catch {
+      setState({ sending: false, ok: false, msg: 'Erreur réseau.' });
+    }
   }
 
   return (
@@ -208,8 +222,8 @@ function ContactSection() {
           />
         </div>
 
-        <button className="send-btn" type="submit">
-          Envoyer
+        <button className="send-btn" type="submit" disabled={state.sending}>
+          {state.sending ? 'Envoi…' : 'Envoyer'}
         </button>
 
         {state.ok === true && <div className="form-msg ok">{state.msg}</div>}
