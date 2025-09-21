@@ -11,96 +11,7 @@ body {
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 80px;
-}
-
-/* =========================
-   Password Gate (overlay)
-   ========================= */
-.gate-overlay {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(1200px 700px at 50% -10%, rgba(80,90,70,0.25), rgba(20,24,20,0.96) 65%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 99999;
-  backdrop-filter: blur(2px);
-}
-
-.gate-modal {
-  width: min(92vw, 460px);
-  background: #2b3328;
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 12px 48px rgba(0,0,0,0.35);
-  border-radius: 16px;
-  padding: 24px 22px;
-  color: #faf8e5;
-  text-align: center;
-}
-
-.gate-modal h2 {
-  margin: 0 0 10px;
-  color: #f7b42c;
-  font-size: 1.8rem;
-}
-
-.gate-subtitle {
-  opacity: 0.9;
-  margin-bottom: 16px;
-}
-
-.gate-input-row {
-  display: flex;
-  gap: 8px;
-  align-items: stretch;
-  margin-bottom: 10px;
-}
-
-.gate-input {
-  flex: 1;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: #232a21;
-  color: #faf8e5;
-  outline: none;
-}
-
-.gate-toggle {
-  border: 1px solid rgba(255,255,255,0.15);
-  background: #232a21;
-  color: #faf8e5;
-  border-radius: 10px;
-  padding: 0 12px;
-  cursor: pointer;
-}
-
-.gate-error {
-  color: #ffb4b4;
-  margin: 4px 0 10px;
-  font-size: 0.95rem;
-  min-height: 1.2em;
-}
-
-.gate-submit {
-  width: 100%;
-  background: #f7b42c;
-  color: #232a21;
-  border: none;
-  border-radius: 12px;
-  padding: 10px 14px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: background .15s ease;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-}
-.gate-submit:hover { background: #ffd684; }
-
-.gate-hint {
-  margin-top: 10px;
-  font-size: 0.85rem;
-  opacity: 0.7;
+  scroll-padding-top: 80px; /* pour compenser la navbar fixe lors des ancres (#contact, etc.) */
 }
 
 /* ===================
@@ -213,6 +124,7 @@ html {
   box-shadow: 0 2px 24px rgba(44,55,40,0.09);
   overflow: hidden;
 }
+.spectacle-hero-img-wrap { position: relative; }
 .spectacle-hero-img {
   width: 38vw;
   min-width: 290px;
@@ -258,64 +170,12 @@ html {
 }
 .main-spectacle-btn:hover { background: #ffd684; }
 
-/* Responsive HERO */
 @media (max-width: 900px) {
   .spectacle-hero { flex-direction: column; border-radius: 0.7em; }
   .spectacle-hero-img { width: 100%; max-width: none; min-height: 210px; border-radius: 0; }
   .spectacle-hero-content { padding: 2rem 1rem; text-align: center; align-items: center; }
   .main-spectacle-btn { align-self: center; }
 }
-
-/* ====================
-   Carrousel Galerie
-   ==================== */
-.carousel-wrapper {
-  width: 100%;
-  max-width: 1800px;
-  margin: 0 auto;
-  position: relative;
-  overflow: visible;
-  padding: 0;
-}
-.mySwiper {
-  width: 100%;
-  position: relative;
-  overflow: visible;
-  padding-bottom: 48px;
-  padding-left: 7vw;
-  padding-right: 7vw;
-  box-sizing: border-box;
-}
-.peek-slide {
-  width: 600px !important;
-  max-width: 98vw;
-  border-radius: 1.5rem;
-  overflow: hidden;
-  background: #222;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.slide-img-wrapper {
-  width: 100%;
-  aspect-ratio: 16/9;
-  min-height: 280px;
-  max-height: 60vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-.slide-img-wrapper img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.more-button {
-  position: absolute; left: 50%; bottom: 32px; transform: translateX(-50%);
-  background-color: #f7b42c; color: #232a21; border-radius: 2rem; font-weight: bold;
-  box-shadow: 0 2px 12px rgba(34,40,31,0.12); border: none; padding: 0.6rem 1.5rem;
-  font-size: 1.1rem; cursor: pointer; z-index: 3; transition: background 0.2s;
-}
-.more-button:hover { background-color: #ffd684; color: #232a21; }
-.swiper-pagination-bullet { background: #8ea06e !important; }
-.swiper-pagination-bullet-active { background: #f7b42c !important; box-shadow: 0 0 4px #f7b42c; }
 
 /* ====================
    Page AFFICHES
@@ -376,4 +236,75 @@ html {
 }
 @media (max-width: 600px) {
   .poster-list { grid-template-columns: 1fr; }
+}
+
+/* ====================
+   Contact (form)
+   ==================== */
+.contact-section { background: #232a21; }
+
+.contact-card {
+  width: min(760px, 92vw);
+  margin: 0 auto;
+  background: #273025;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+  padding: 22px 20px;
+  text-align: left;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.form-row label {
+  font-weight: 700;
+  color: #f7b42c;
+}
+.form-row input,
+.form-row textarea {
+  background: #232a21;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #faf8e5;
+  border-radius: 10px;
+  padding: 12px 14px;
+  outline: none;
+}
+.form-row input:focus,
+.form-row textarea:focus {
+  border-color: #80cdf3;
+  box-shadow: 0 0 0 3px rgba(128,205,243,0.15);
+}
+
+.send-btn {
+  background: #f7b42c;
+  color: #232a21;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 18px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .15s ease;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+}
+.send-btn:hover { background: #ffd684; }
+
+.form-msg {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.form-msg.ok {
+  background: #203921;
+  color: #b1ffb1;
+  border: 1px solid rgba(177,255,177,0.25);
+}
+.form-msg.err {
+  background: #3a2020;
+  color: #ffb1b1;
+  border: 1px solid rgba(255,177,177,0.25);
 }

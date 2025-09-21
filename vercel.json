@@ -1,6 +1,0 @@
-{
-  "rewrites": [
-    { "source": "/contact-endpoint", "destination": "/api/send-email" },
-    { "source": "/(.*)", "destination": "/" }
-  ]
-}

@@ -5,17 +5,15 @@ import { useMemo, useState } from 'react';
 import portrait from './assets/portrait.jpg';
 import spectacleMain from './assets/spectacle-main.jpg';
 
-// AFFICHES : dans src/assets/spectacle/affiches
+// Affiches pour l'image principale (prend la plus proche dans le futur si dispo)
 const postersModules = import.meta.glob('./assets/spectacle/affiches/*.{jpg,jpeg,png}', { eager: true });
 
 function parseFromFilename(fileBase) {
-  // YYYY-MM-DD
   let m = fileBase.match(/^(\d{4})[-_.](\d{2})[-_.](\d{2})(?:[-_.](.*))?$/);
-  if (m) return { date: new Date(`${m[1]}-${m[2]}-${m[3]}`), title: (m[4] || '').replace(/[-_.]/g, ' ').trim() };
-  // DD-MM-YYYY
+  if (m) return { date: new Date(`${m[1]}-${m[2]}-${m[3]}`) };
   m = fileBase.match(/^(\d{2})[-_.](\d{2})[-_.](\d{4})(?:[-_.](.*))?$/);
-  if (m) return { date: new Date(`${m[3]}-${m[2]}-${m[1]}`), title: (m[4] || '').replace(/[-_.]/g, ' ').trim() };
-  return { date: null, title: '' };
+  if (m) return { date: new Date(`${m[3]}-${m[2]}-${m[1]}`) };
+  return { date: null };
 }
 
 /* =========
@@ -24,25 +22,25 @@ function parseFromFilename(fileBase) {
 function Home() {
   const navigate = useNavigate();
 
-  // Image principale = affiche la plus proche dans le futur, sinon spectacleMain
+  // choisit une affiche future pour l’image principale (sinon fallback)
   const today = useMemo(() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0); return d;
+    const d = new Date(); d.setHours(0,0,0,0); return d;
   }, []);
-
   const nextPoster = useMemo(() => {
-    const posters = Object.entries(postersModules).map(([path, mod]) => {
-      const file = path.split('/').pop();
-      const base = file.replace(/\.(jpg|jpeg|png)$/i, '');
+    const posters = Object.entries(postersModules).map(([p, mod]) => {
+      const file = p.split('/').pop();
+      const base = file.replace(/\.(jpg|jpeg|png)$/i,'');
       const { date } = parseFromFilename(base);
       const src = typeof mod === 'string' ? mod : mod?.default;
       return { src, date };
     }).filter(p => p.date && !isNaN(p.date));
-    const future = posters.filter(p => p.date >= today).sort((a, b) => a.date - b.date);
+    const future = posters.filter(p => p.date >= today).sort((a,b)=>a.date-b.date);
     return future[0] || null;
   }, [today]);
 
   return (
     <>
+      {/* NAVBAR : les liens #… scrollent vers les sections */}
       <nav className="navbar">
         <div className="nav-left">L’amitié des veillées</div>
         <ul className="nav-right">
@@ -53,6 +51,7 @@ function Home() {
         </ul>
       </nav>
 
+      {/* ACCUEIL */}
       <section id="accueil" className="section accueil">
         <img src={portrait} alt="Portrait" className="portrait" />
         <div className="content">
@@ -62,7 +61,7 @@ function Home() {
         </div>
       </section>
 
-      {/* SPECTACLES : image principale (sans badge) */}
+      {/* SPECTACLES */}
       <section id="spectacles" className="section section-spectacle-hero">
         <div className="spectacle-hero">
           <div className="spectacle-hero-img-wrap">
@@ -92,7 +91,7 @@ function Home() {
         <p>À venir...</p>
       </section>
 
-      {/* CONTACT */}
+      {/* CONTACT (formulaire simple, sans envoi serveur) */}
       <ContactSection />
     </>
   );
@@ -153,49 +152,19 @@ function PostersPage() {
    Contact Section
    ================ */
 function ContactSection() {
-  // anti-bot: honeypot + petite addition
-  const [hp, setHp] = useState(''); // honeypot (doit rester vide)
-  const [a] = useState(() => Math.floor(2 + Math.random() * 7));
-  const [b] = useState(() => Math.floor(2 + Math.random() * 7));
-  const [answer, setAnswer] = useState('');
-
   const [form, setForm] = useState({ name: '', email: '', message: '' });
-  const [state, setState] = useState({ sending: false, ok: null, msg: '' });
+  const [state, setState] = useState({ ok: null, msg: '' });
 
-  async function onSubmit(e) {
+  function onSubmit(e) {
     e.preventDefault();
-    if (hp) { setState({ sending: false, ok: false, msg: "Échec validation anti-bot." }); return; }
-    if (Number(answer) !== a + b) {
-      setState({ sending: false, ok: false, msg: "Réponse anti-bot incorrecte." }); return;
-    }
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
-      setState({ sending: false, ok: false, msg: "Merci de compléter tous les champs." }); return;
+      setState({ ok: false, msg: 'Merci de compléter tous les champs.' });
+      return;
     }
-
-    try {
-      setState({ sending: true, ok: null, msg: '' });
-      const res = await fetch('/contact-endpoint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          message: form.message,
-          antibot: { a, b, answer },
-          hp,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data?.ok) {
-        setState({ sending: false, ok: true, msg: 'Message envoyé. Merci !' });
-        setForm({ name: '', email: '', message: '' });
-        setAnswer('');
-      } else {
-        setState({ sending: false, ok: false, msg: data?.error || 'Erreur lors de l’envoi.' });
-      }
-    } catch {
-      setState({ sending: false, ok: false, msg: 'Erreur réseau.' });
-    }
+    // Pas d’envoi pour l’instant : on affiche juste une confirmation locale
+    setState({ ok: true, msg: 'Merci ! Votre message a bien été saisi.' });
+    // Optionnel: vider le formulaire
+    setForm({ name: '', email: '', message: '' });
   }
 
   return (
@@ -203,38 +172,44 @@ function ContactSection() {
       <h2>Contact</h2>
 
       <form className="contact-card" onSubmit={onSubmit} noValidate>
-        <input
-          type="text" className="hp-field" autoComplete="off"
-          value={hp} onChange={(e) => setHp(e.target.value)}
-          tabIndex={-1} aria-hidden="true"
-        />
-
         <div className="form-row">
           <label htmlFor="name">Nom / Prénom</label>
-          <input id="name" type="text" placeholder="Votre nom complet"
-            value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <input
+            id="name"
+            type="text"
+            placeholder="Votre nom complet"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
         </div>
 
         <div className="form-row">
           <label htmlFor="email">E-mail</label>
-          <input id="email" type="email" placeholder="votre@email.com"
-            value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+          <input
+            id="email"
+            type="email"
+            placeholder="votre@email.com"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
         </div>
 
         <div className="form-row">
           <label htmlFor="message">Message</label>
-          <textarea id="message" placeholder="Votre message…" rows={6}
-            value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} required />
+          <textarea
+            id="message"
+            placeholder="Votre message…"
+            rows={6}
+            value={form.message}
+            onChange={(e) => setForm({ ...form, message: e.target.value })}
+            required
+          />
         </div>
 
-        <div className="form-row antibot-row">
-          <label htmlFor="antibot">Anti-bot : {a} + {b} = ?</label>
-          <input id="antibot" type="number" inputMode="numeric" placeholder="Votre réponse"
-            value={answer} onChange={(e) => setAnswer(e.target.value)} required />
-        </div>
-
-        <button className="send-btn" type="submit" disabled={state.sending}>
-          {state.sending ? 'Envoi…' : 'Envoyer'}
+        <button className="send-btn" type="submit">
+          Envoyer
         </button>
 
         {state.ok === true && <div className="form-msg ok">{state.msg}</div>}
