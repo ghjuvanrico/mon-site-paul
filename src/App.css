@@ -308,3 +308,14 @@ html {
   color: #ffb1b1;
   border: 1px solid rgba(255,177,177,0.25);
 }
+
+/* cache le champ anti-bot */
+.hp-field {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  position: absolute !important;
+  left: -9999px;
+}
