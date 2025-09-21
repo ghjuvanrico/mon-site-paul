@@ -152,13 +152,28 @@ function PostersPage() {
    Contact Section
    ================ */
 function ContactSection() {
-  const [form, setForm] = useState({ name: '', email: '', message: '' });
+  // anti-bot: honeypot + petite addition
+  const [hp, setHp] = useState(''); // doit rester vide pour les humains
+  const [a] = useState(() => Math.floor(2 + Math.random() * 7));
+  const [b] = useState(() => Math.floor(2 + Math.random() * 7));
+  const [answer, setAnswer] = useState('');
+
+  const [form, setForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [state, setState] = useState({ sending: false, ok: null, msg: '' });
 
   async function onSubmit(e) {
     e.preventDefault();
+
+    if (hp) { // bot détecté (champ caché rempli)
+      setState({ sending: false, ok: false, msg: 'Échec validation anti-bot.' });
+      return;
+    }
+    if (Number(answer) !== a + b) {
+      setState({ sending: false, ok: false, msg: 'Réponse anti-bot incorrecte.' });
+      return;
+    }
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
-      setState({ sending: false, ok: false, msg: 'Merci de compléter tous les champs.' });
+      setState({ sending: false, ok: false, msg: 'Merci de compléter tous les champs obligatoires.' });
       return;
     }
 
@@ -167,12 +182,20 @@ function ContactSection() {
       const res = await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          message: form.message,
+          antibot: { a, b, answer },
+          hp,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data?.ok) {
         setState({ sending: false, ok: true, msg: 'Message envoyé. Merci !' });
-        setForm({ name: '', email: '', message: '' });
+        setForm({ name: '', email: '', phone: '', message: '' });
+        setAnswer('');
       } else {
         setState({ sending: false, ok: false, msg: data?.error || 'Erreur lors de l’envoi.' });
       }
@@ -186,8 +209,19 @@ function ContactSection() {
       <h2>Contact</h2>
 
       <form className="contact-card" onSubmit={onSubmit} noValidate>
+        {/* honeypot (ne pas remplir) */}
+        <input
+          type="text"
+          className="hp-field"
+          autoComplete="off"
+          value={hp}
+          onChange={(e) => setHp(e.target.value)}
+          tabIndex={-1}
+          aria-hidden="true"
+        />
+
         <div className="form-row">
-          <label htmlFor="name">Nom / Prénom</label>
+          <label htmlFor="name">Nom / Prénom *</label>
           <input
             id="name"
             type="text"
@@ -199,7 +233,7 @@ function ContactSection() {
         </div>
 
         <div className="form-row">
-          <label htmlFor="email">E-mail</label>
+          <label htmlFor="email">E-mail *</label>
           <input
             id="email"
             type="email"
@@ -211,13 +245,38 @@ function ContactSection() {
         </div>
 
         <div className="form-row">
-          <label htmlFor="message">Message</label>
+          <label htmlFor="phone">Téléphone</label>
+          <input
+            id="phone"
+            type="tel"
+            placeholder="06 12 34 56 78"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            inputMode="tel"
+          />
+        </div>
+
+        <div className="form-row">
+          <label htmlFor="message">Message *</label>
           <textarea
             id="message"
             placeholder="Votre message…"
             rows={6}
             value={form.message}
             onChange={(e) => setForm({ ...form, message: e.target.value })}
+            required
+          />
+        </div>
+
+        <div className="form-row antibot-row">
+          <label htmlFor="antibot">Anti-bot : {a} + {b} = ? *</label>
+          <input
+            id="antibot"
+            type="number"
+            inputMode="numeric"
+            placeholder="Votre réponse"
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
             required
           />
         </div>
