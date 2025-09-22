@@ -25,11 +25,11 @@ const imageModules = import.meta.glob(
 */
 const docModulesSameDir = import.meta.glob(
   "./assets/spectacle/affiches/*.{pdf,odt,docx,txt}",
-  { eager: true }
+  { eager: true, as: "url" }
 );
 const docModulesSubDir = import.meta.glob(
   "./assets/spectacle/affiches/details/*.{pdf,odt,docx,txt}",
-  { eager: true }
+  { eager: true, as: "url" }
 );
 
 /* ===== Helpers ===== */
