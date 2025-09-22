@@ -1,28 +1,17 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import "./App.css";
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from "react-router-dom";
 
 import portrait from "./assets/portrait.jpg";
 import spectacleMain from "./assets/spectacle-main.jpg";
 
-/* ===== Import dynamique des affiches (images) =====
-   Met tes images dans: src/assets/spectacle/affiches/
-   Exemples de noms:
-     - 2025-12-05_mon-titre.jpg
-     - 05-12-2025_mon-titre.png
-*/
+/* ===== Import images d’affiches ===== */
 const imageModules = import.meta.glob(
   "./assets/spectacle/affiches/*.{png,jpg,jpeg}",
   { eager: true }
 );
 
-/* ===== Import dynamique des documents (liés aux affiches) =====
-   Même base de nom que l’image:
-     07-09-2025_fermevie.jpg -> 07-09-2025_fermevie.pdf (ou .odt/.docx/.txt)
-   Cherchés à 2 endroits:
-     - src/assets/spectacle/affiches/
-     - src/assets/spectacle/affiches/details/
-*/
+/* ===== Import documents liés (en URL pour éviter les erreurs de build) ===== */
 const docModulesSameDir = import.meta.glob(
   "./assets/spectacle/affiches/*.{pdf,odt,docx,txt}",
   { eager: true, as: "url" }
@@ -32,12 +21,9 @@ const docModulesSubDir = import.meta.glob(
   { eager: true, as: "url" }
 );
 
-/* ===== Helpers ===== */
 function parseDateFromFilename(base) {
-  // YYYY-MM-DD_* or YYYY.MM.DD_*
   let m = base.match(/^(\d{4})[-_.](\d{2})[-_.](\d{2})/);
   if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}`);
-  // DD-MM-YYYY_* or DD.MM.YYYY_*
   m = base.match(/^(\d{2})[-_.](\d{2})[-_.](\d{4})/);
   if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}`);
   return null;
@@ -49,7 +35,7 @@ function toUrl(mod) {
   return typeof mod === "string" ? mod : mod?.default;
 }
 
-/* Construit la liste des affiches (tri: plus récent -> plus ancien) */
+/* Liste des affiches triées */
 const AFFICHES = Object.entries(imageModules)
   .map(([path, mod]) => {
     const file = path.split("/").pop() || "";
@@ -65,32 +51,23 @@ const AFFICHES = Object.entries(imageModules)
   .filter((a) => a.date && !isNaN(a.date))
   .sort((a, b) => b.date - a.date);
 
-/* Construit une map baseName -> docUrl (priorité: pdf > odt > docx > txt) */
+/* Map base -> meilleur doc (priorité: pdf > odt > docx > txt) */
 const DOC_PRIORITY = ["pdf", "odt", "docx", "txt"];
 function buildDocsMap() {
   const all = { ...docModulesSameDir, ...docModulesSubDir };
-  const entries = Object.entries(all).map(([path, mod]) => {
+  const byBase = new Map();
+  Object.entries(all).forEach(([path, url]) => {
     const file = path.split("/").pop() || "";
     const base = stripExt(file);
     const ext = (file.split(".").pop() || "").toLowerCase();
-    return { base, ext, url: toUrl(mod) };
+    const existing = byBase.get(base) || {};
+    existing[ext] = url;
+    byBase.set(base, existing);
   });
-  const map = new Map();
-  for (const { base, ext, url } of entries) {
-    if (!map.has(base)) {
-      map.set(base, { [ext]: url });
-    } else {
-      map.set(base, { ...map.get(base), [ext]: url });
-    }
-  }
-  // Choisit le meilleur doc par base (selon priorité)
   const best = new Map();
-  for (const [base, byExt] of map.entries()) {
+  for (const [base, obj] of byBase.entries()) {
     for (const ext of DOC_PRIORITY) {
-      if (byExt[ext]) {
-        best.set(base, byExt[ext]);
-        break;
-      }
+      if (obj[ext]) { best.set(base, { url: obj[ext], ext }); break; }
     }
   }
   return best;
@@ -98,14 +75,11 @@ function buildDocsMap() {
 const DOCS_MAP = buildDocsMap();
 
 /* =========================
-   Page d'accueil (Home)
+   Accueil
    ========================= */
 function Home() {
   const navigate = useNavigate();
-
-  const today = useMemo(() => {
-    const d = new Date(); d.setHours(0,0,0,0); return d;
-  }, []);
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const nextPoster = useMemo(() => {
     const future = AFFICHES.filter(a => a.date >= today).sort((a,b)=>a.date-b.date);
     return future[0] || null;
@@ -113,7 +87,6 @@ function Home() {
 
   return (
     <div className="app">
-      {/* NAVBAR */}
       <nav className="navbar">
         <div className="nav-left">L’amitié des veillées</div>
         <ul className="nav-right">
@@ -124,7 +97,6 @@ function Home() {
         </ul>
       </nav>
 
-      {/* ACCUEIL */}
       <section id="accueil" className="section accueil">
         <img src={portrait} alt="Portrait" className="portrait" />
         <div className="content">
@@ -134,7 +106,6 @@ function Home() {
         </div>
       </section>
 
-      {/* SPECTACLES – Hero */}
       <section id="spectacles" className="section section-spectacle-hero">
         <div className="spectacle-hero">
           <div className="spectacle-hero-img-wrap">
@@ -158,13 +129,11 @@ function Home() {
         </div>
       </section>
 
-      {/* ANIMATIONS */}
       <section id="animations" className="section">
         <h2>Animations forestières</h2>
         <p>À venir…</p>
       </section>
 
-      {/* CONTACT */}
       <ContactSection />
     </div>
   );
@@ -175,7 +144,27 @@ function Home() {
    ========================= */
 function PostersPage() {
   const [selectedPoster, setSelectedPoster] = useState(null);
+  const [docViewer, setDocViewer] = useState(null); // { url, ext, title }
+  const [docText, setDocText] = useState("");
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+
+  // Charge TXT si besoin
+  useEffect(() => {
+    if (docViewer?.ext === "txt" && docViewer?.url) {
+      fetch(docViewer.url)
+        .then(r => r.ok ? r.text() : Promise.reject(new Error("load txt")))
+        .then(setDocText)
+        .catch(() => setDocText("Impossible de charger le texte."));
+    } else {
+      setDocText("");
+    }
+  }, [docViewer]);
+
+  function openDetails(base, title) {
+    const found = DOCS_MAP.get(base);
+    if (!found) return; // bouton désactivé côté UI de toute façon
+    setDocViewer({ url: found.url, ext: found.ext, title: title || base });
+  }
 
   return (
     <>
@@ -199,7 +188,7 @@ function PostersPage() {
         <div className="poster-list">
           {AFFICHES.map((p, i) => {
             const isPast = p.date < today;
-            const docUrl = DOCS_MAP.get(p.base) || null;
+            const doc = DOCS_MAP.get(p.base) || null;
 
             return (
               <div
@@ -211,21 +200,19 @@ function PostersPage() {
               >
                 <img src={p.src} alt={p.title || `Affiche ${i + 1}`} />
 
-                {/* Badge "Date passée" */}
-                {isPast && <div className="poster-badge">Date passée</div>}
+                {/* Badge en haut-gauche (ne chevauche plus le bouton) */}
+                {isPast && <div className="poster-badge tl">Date passée</div>}
 
                 {/* Bouton Détails (n'ouvre pas la lightbox) */}
                 <div className="poster-actions" onClick={(e)=>e.stopPropagation()}>
-                  {docUrl ? (
-                    <a
+                  {doc ? (
+                    <button
                       className="poster-details-btn"
-                      href={docUrl}
-                      target="_blank"
-                      rel="noopener"
-                      title="Ouvrir les détails"
+                      onClick={() => openDetails(p.base, p.title)}
+                      title="Voir les détails"
                     >
                       Détails
-                    </a>
+                    </button>
                   ) : (
                     <button className="poster-details-btn disabled" disabled>
                       Détails
@@ -237,12 +224,55 @@ function PostersPage() {
           })}
         </div>
 
-        {/* Lightbox (clic sur l’affiche) */}
+        {/* Lightbox image */}
         {selectedPoster && (
           <div className="lightbox" onClick={() => setSelectedPoster(null)}>
             <div className="lightbox-content" onClick={(e)=>e.stopPropagation()}>
               <img src={selectedPoster} alt="Affiche en grand" />
               <button className="lightbox-close" onClick={() => setSelectedPoster(null)}>✕</button>
+            </div>
+          </div>
+        )}
+
+        {/* Lightbox document (ouvre dans le site) */}
+        {docViewer && (
+          <div className="docbox" onClick={() => setDocViewer(null)}>
+            <div className="docbox-content" onClick={(e)=>e.stopPropagation()}>
+              <div className="docbox-header">
+                <div className="docbox-title">{docViewer.title || "Détails"}</div>
+                <button className="docbox-close" onClick={() => setDocViewer(null)}>✕</button>
+              </div>
+
+              <div className="docbox-body">
+                {docViewer.ext === "pdf" && (
+                  <iframe
+                    className="doc-frame"
+                    src={docViewer.url}
+                    title="Détails PDF"
+                  />
+                )}
+
+                {docViewer.ext === "txt" && (
+                  <pre className="doc-text">{docText}</pre>
+                )}
+
+                {(docViewer.ext === "docx" || docViewer.ext === "odt") && (
+                  <div className="doc-fallback">
+                    <p>
+                      Cet élément est un fichier <b>{docViewer.ext.toUpperCase()}</b> qui
+                      ne peut pas être affiché directement dans le navigateur.
+                    </p>
+                    <p>
+                      👉 Ajoute une version <b>PDF</b> portant le même nom de fichier
+                      dans <code>src/assets/spectacle/affiches/</code> ou
+                      <code>.../details/</code> pour un affichage intégré.
+                    </p>
+                    <a className="doc-open-link" href={docViewer.url} target="_blank" rel="noopener">
+                      Ouvrir dans un onglet
+                    </a>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -255,8 +285,7 @@ function PostersPage() {
    Section Contact
    ========================= */
 function ContactSection() {
-  // anti-bot
-  const [hp, setHp] = useState(""); // honeypot (reste vide)
+  const [hp, setHp] = useState(""); // honeypot
   const [a] = useState(() => Math.floor(2 + Math.random() * 7));
   const [b] = useState(() => Math.floor(2 + Math.random() * 7));
   const [answer, setAnswer] = useState("");
@@ -266,7 +295,6 @@ function ContactSection() {
 
   async function onSubmit(e) {
     e.preventDefault();
-
     if (hp) { setState({ sending: false, ok: false, msg: "Échec validation anti-bot." }); return; }
     if (Number(answer) !== a + b) { setState({ sending: false, ok: false, msg: "Réponse anti-bot incorrecte." }); return; }
     if (!form.name.trim() || !form.email.trim() || !form.message.trim()) {
@@ -305,7 +333,6 @@ function ContactSection() {
       <h2>Contact</h2>
 
       <form className="contact-card" onSubmit={onSubmit} noValidate>
-        {/* honeypot (caché) */}
         <input
           type="text"
           className="hp-field"
@@ -388,9 +415,6 @@ function ContactSection() {
   );
 }
 
-/* =========================
-   Root (routes)
-   ========================= */
 export default function RootApp() {
   return (
     <Router>

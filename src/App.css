@@ -1,3 +1,4 @@
+/* ========= Base / Reset ========= */
 html, body, #root, .app {
   min-height: 100vh;
   width: 100%;
@@ -7,20 +8,18 @@ body {
   font-family: 'Georgia', serif;
   background-color: #232a21;
   color: #faf8e5;
+  margin: 0;
 }
 
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 80px; /* compense la navbar fixe */
+  scroll-padding-top: 80px; /* compense la navbar fixe pour les ancres */
 }
 
-/* ===================
-   Navbar & Sections
-   =================== */
+/* ========= Navbar ========= */
 .navbar {
   position: fixed;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   width: 100vw;
   z-index: 100;
   background: rgba(34,40,31,0.96);
@@ -47,6 +46,8 @@ html {
   flex-wrap: wrap;
   align-items: center;
   min-width: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .nav-right a {
@@ -71,6 +72,7 @@ html {
   .nav-right { gap: 0.5rem; font-size: 0.97em; }
 }
 
+/* ========= Sections ========= */
 .section {
   min-height: 100vh;
   padding-top: 110px;
@@ -84,6 +86,7 @@ html {
   background: #232a21;
 }
 .section:nth-of-type(even) { background: #2e352a; }
+
 .section h2 {
   margin-bottom: 2.5rem;
   font-size: 2.6rem;
@@ -91,18 +94,23 @@ html {
   color: #f7b42c;
 }
 
-.accueil { background: url('/background.jpg') center/cover no-repeat; color: white; }
+/* Accueil */
+.accueil {
+  background: url('/background.jpg') center/cover no-repeat;
+  color: white;
+}
 .portrait {
-  width: 140px; border-radius: 10px; box-shadow: 0 4px 16px #1b2419;
-  border: 2px solid #8ea06e; margin-bottom: 1rem;
+  width: 140px;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px #1b2419;
+  border: 2px solid #8ea06e;
+  margin-bottom: 1rem;
 }
 .content h1 { font-size: 3rem; }
-.content p { font-size: 1.5rem; }
-.note { font-style: italic; margin-top: 1rem; color: #eee; }
+.content p  { font-size: 1.5rem; }
+.note       { font-style: italic; margin-top: 1rem; color: #eee; }
 
-/* =====================
-   Hero Spectacles
-   ===================== */
+/* ========= Hero Spectacles ========= */
 .section-spectacle-hero {
   background: #232a21;
   min-height: 620px;
@@ -112,6 +120,7 @@ html {
   align-items: center;
   justify-content: center;
 }
+
 .spectacle-hero {
   display: flex;
   width: 100%;
@@ -124,7 +133,9 @@ html {
   box-shadow: 0 2px 24px rgba(44,55,40,0.09);
   overflow: hidden;
 }
+
 .spectacle-hero-img-wrap { position: relative; }
+
 .spectacle-hero-img {
   width: 38vw;
   min-width: 290px;
@@ -136,6 +147,7 @@ html {
   background: #232a21;
   display: block;
 }
+
 .spectacle-hero-content {
   flex: 1;
   display: flex;
@@ -177,9 +189,7 @@ html {
   .main-spectacle-btn { align-self: center; }
 }
 
-/* ====================
-   Affiches (grille)
-   ==================== */
+/* ========= Affiches (grille) ========= */
 .posters-page { background: #232a21; }
 
 .poster-list {
@@ -194,7 +204,7 @@ html {
 .poster-item {
   position: relative;
   background: #273025;
-  padding: 0.8rem 0.8rem 2.6rem; /* un peu plus bas pour le bouton */
+  padding: 0.8rem 0.8rem 2.8rem; /* bas plus grand pour bouton */
   border-radius: 1rem;
   box-shadow: 0 2px 20px rgba(0,0,0,0.18);
   display: flex;
@@ -214,6 +224,24 @@ html {
   transition: transform .15s ease, filter .25s ease;
 }
 .poster-item:hover img { transform: translateY(-1px); }
+
+/* Badge "Date passée" en haut-gauche (ne chevauche plus le bouton) */
+.poster-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: #101413;
+  color: #ddd;
+  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.15);
+  pointer-events: none;
+}
+
+/* Passé = N&B ; couleur au hover */
+.poster-item.past img { filter: grayscale(100%); }
+.poster-item.past:hover img { filter: grayscale(0%); }
 
 /* Actions sous l'image */
 .poster-actions {
@@ -242,25 +270,6 @@ html {
   box-shadow: none;
 }
 
-/* Affiches passées en N&B */
-.poster-item.past img { filter: grayscale(100%); }
-.poster-item.past:hover img { filter: grayscale(0%); }
-
-/* Badge "Date passée" */
-.poster-badge {
-  position: absolute;
-  left: 50%;
-  bottom: 42px; /* remonte au-dessus du bouton */
-  transform: translateX(-50%);
-  background: #101413;
-  color: #ddd;
-  font-size: 0.9rem;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.15);
-  pointer-events: none;
-}
-
 /* Responsive grille */
 @media (max-width: 900px) {
   .poster-list { grid-template-columns: repeat(2, 1fr); }
@@ -269,9 +278,7 @@ html {
   .poster-list { grid-template-columns: 1fr; }
 }
 
-/* ====================
-   Lightbox (moins zoomée + scroll)
-   ==================== */
+/* ========= Lightbox Image (moins zoomée + scroll) ========= */
 .lightbox {
   position: fixed;
   inset: 0;
@@ -282,11 +289,12 @@ html {
   z-index: 999;
   cursor: zoom-out;
   padding: 4vh 4vw;
-  overflow: auto;
+  overflow: auto; /* si image trop grande */
 }
+
 .lightbox-content {
   position: relative;
-  max-width: 45vw;
+  max-width: 45vw;  /* taille raisonnable */
   max-height: 70vh;
   display: flex;
   align-items: center;
@@ -294,16 +302,16 @@ html {
   overflow: auto;
   border-radius: 12px;
 }
+
 .lightbox-content img {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  width: auto; height: auto;
+  max-width: 100%; max-height: 100%;
   object-fit: contain;
   border-radius: 12px;
   box-shadow: 0 0 20px rgba(0,0,0,0.6);
   cursor: default;
 }
+
 .lightbox-close {
   position: sticky;
   top: 8px;
@@ -321,6 +329,7 @@ html {
   box-shadow: 0 2px 10px rgba(0,0,0,0.4);
 }
 .lightbox-close:hover { background: #ffd684; }
+
 @media (max-width: 1200px) {
   .lightbox-content { max-width: 55vw; max-height: 72vh; }
 }
@@ -328,9 +337,93 @@ html {
   .lightbox-content { max-width: 90vw; max-height: 78vh; }
 }
 
-/* ====================
-   Contact (form)
-   ==================== */
+/* ========= Docbox (viewer pour PDF/TXT + fallback DOCX/ODT) ========= */
+.docbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 3vh 3vw;
+}
+
+.docbox-content {
+  width: min(1100px, 94vw);
+  height: min(86vh, 900px);
+  background: #1f241e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.docbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: #273025;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.docbox-title {
+  font-weight: 800;
+  color: #f7b42c;
+}
+
+.docbox-close {
+  background: #f7b42c;
+  color: #232a21;
+  border: none;
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.docbox-close:hover { background: #ffd684; }
+
+.docbox-body {
+  flex: 1;
+  overflow: auto;
+  background: #1c201b;
+}
+
+/* PDF */
+.doc-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #1c201b;
+}
+
+/* TXT */
+.doc-text {
+  white-space: pre-wrap;
+  padding: 16px;
+  line-height: 1.6;
+  color: #faf8e5;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* DOCX/ODT fallback */
+.doc-fallback { padding: 18px; color: #faf8e5; line-height: 1.6; }
+.doc-fallback p { margin: 0 0 10px; }
+.doc-open-link {
+  display: inline-block;
+  background: #80cdf3;
+  color: #111;
+  font-weight: 800;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+}
+.doc-open-link:hover { filter: brightness(1.1); }
+
+/* ========= Contact ========= */
 .contact-section { background: #232a21; }
 
 .contact-card {
@@ -371,13 +464,14 @@ html {
   box-shadow: 0 0 0 3px rgba(128,205,243,0.15);
 }
 
-/* textarea */
+/* textarea : empêche la déformation horizontale */
 .form-row textarea {
   resize: vertical;
   min-height: 140px;
   max-height: 50vh;
 }
 
+/* bouton envoyer */
 .send-btn {
   background: #f7b42c;
   color: #232a21;
@@ -391,6 +485,7 @@ html {
 }
 .send-btn:hover { background: #ffd684; }
 
+/* messages d’état */
 .form-msg {
   margin-top: 12px;
   padding: 10px 12px;
@@ -408,9 +503,7 @@ html {
   border: 1px solid rgba(255,177,177,0.25);
 }
 
-/* ====================
-   Anti-bot (honeypot)
-   ==================== */
+/* ========= Anti-bot (honeypot) ========= */
 .hp-field {
   display: none !important;
   visibility: hidden !important;
