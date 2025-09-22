@@ -51,7 +51,7 @@ function Home() {
     <div className="app">
       {/* NAVBAR */}
       <nav className="navbar">
-        <div className="nav-left">L’amitié des veillées</div>
+        <div className="nav-left">L’amitié des veillades</div>
         <ul className="nav-right">
           <li><a href="#accueil">Accueil</a></li>
           <li><a href="#spectacles">Spectacles</a></li>
