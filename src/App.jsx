@@ -5,33 +5,97 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from "react
 import portrait from "./assets/portrait.jpg";
 import spectacleMain from "./assets/spectacle-main.jpg";
 
-/* ====== Import dynamique des affiches (src/assets/spectacle/affiches) ====== */
-const afficheModules = import.meta.glob(
+/* ===== Import dynamique des affiches (images) =====
+   Met tes images dans: src/assets/spectacle/affiches/
+   Exemples de noms:
+     - 2025-12-05_mon-titre.jpg
+     - 05-12-2025_mon-titre.png
+*/
+const imageModules = import.meta.glob(
   "./assets/spectacle/affiches/*.{png,jpg,jpeg}",
   { eager: true }
 );
 
+/* ===== Import dynamique des documents (liés aux affiches) =====
+   Même base de nom que l’image:
+     07-09-2025_fermevie.jpg -> 07-09-2025_fermevie.pdf (ou .odt/.docx/.txt)
+   Cherchés à 2 endroits:
+     - src/assets/spectacle/affiches/
+     - src/assets/spectacle/affiches/details/
+*/
+const docModulesSameDir = import.meta.glob(
+  "./assets/spectacle/affiches/*.{pdf,odt,docx,txt}",
+  { eager: true }
+);
+const docModulesSubDir = import.meta.glob(
+  "./assets/spectacle/affiches/details/*.{pdf,odt,docx,txt}",
+  { eager: true }
+);
+
+/* ===== Helpers ===== */
 function parseDateFromFilename(base) {
-  // YYYY-MM-DD
+  // YYYY-MM-DD_* or YYYY.MM.DD_*
   let m = base.match(/^(\d{4})[-_.](\d{2})[-_.](\d{2})/);
   if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}`);
-  // DD-MM-YYYY
+  // DD-MM-YYYY_* or DD.MM.YYYY_*
   m = base.match(/^(\d{2})[-_.](\d{2})[-_.](\d{4})/);
   if (m) return new Date(`${m[3]}-${m[2]}-${m[1]}`);
   return null;
 }
+function stripExt(filename) {
+  return filename.replace(/\.(png|jpe?g|pdf|odt|docx|txt)$/i, "");
+}
+function toUrl(mod) {
+  return typeof mod === "string" ? mod : mod?.default;
+}
 
-const AFFICHES = Object.entries(afficheModules)
+/* Construit la liste des affiches (tri: plus récent -> plus ancien) */
+const AFFICHES = Object.entries(imageModules)
   .map(([path, mod]) => {
     const file = path.split("/").pop() || "";
-    const base = file.replace(/\.(png|jpe?g)$/i, "");
+    const base = stripExt(file);
     const date = parseDateFromFilename(base);
-    const title = base.replace(/^\d{2,4}[-_.]\d{2}[-_.]\d{2,4}[-_.]?/, "").replace(/[-_.]/g, " ").trim();
-    const src = typeof mod === "string" ? mod : mod?.default;
-    return { src, date, title };
+    const title = base
+      .replace(/^\d{2,4}[-_.]\d{2}[-_.]\d{2,4}[-_.]?/, "")
+      .replace(/[-_.]/g, " ")
+      .trim();
+    const src = toUrl(mod);
+    return { src, date, title, base };
   })
-  .filter(a => a.date && !isNaN(a.date))
+  .filter((a) => a.date && !isNaN(a.date))
   .sort((a, b) => b.date - a.date);
+
+/* Construit une map baseName -> docUrl (priorité: pdf > odt > docx > txt) */
+const DOC_PRIORITY = ["pdf", "odt", "docx", "txt"];
+function buildDocsMap() {
+  const all = { ...docModulesSameDir, ...docModulesSubDir };
+  const entries = Object.entries(all).map(([path, mod]) => {
+    const file = path.split("/").pop() || "";
+    const base = stripExt(file);
+    const ext = (file.split(".").pop() || "").toLowerCase();
+    return { base, ext, url: toUrl(mod) };
+  });
+  const map = new Map();
+  for (const { base, ext, url } of entries) {
+    if (!map.has(base)) {
+      map.set(base, { [ext]: url });
+    } else {
+      map.set(base, { ...map.get(base), [ext]: url });
+    }
+  }
+  // Choisit le meilleur doc par base (selon priorité)
+  const best = new Map();
+  for (const [base, byExt] of map.entries()) {
+    for (const ext of DOC_PRIORITY) {
+      if (byExt[ext]) {
+        best.set(base, byExt[ext]);
+        break;
+      }
+    }
+  }
+  return best;
+}
+const DOCS_MAP = buildDocsMap();
 
 /* =========================
    Page d'accueil (Home)
@@ -51,7 +115,7 @@ function Home() {
     <div className="app">
       {/* NAVBAR */}
       <nav className="navbar">
-        <div className="nav-left">L’amitié des veillades</div>
+        <div className="nav-left">L’amitié des veillées</div>
         <ul className="nav-right">
           <li><a href="#accueil">Accueil</a></li>
           <li><a href="#spectacles">Spectacles</a></li>
@@ -87,7 +151,6 @@ function Home() {
               Bienvenue dans l’univers de Paul Roy.<br />
               Découvrez des spectacles vivants, contés et musicaux, inspirés par la forêt, la tradition et l’amitié des veillées.
             </p>
-            {/* ➜ Change de page vers /affiches */}
             <button className="main-spectacle-btn" onClick={() => navigate("/affiches")}>
               Nos prochains spectacles
             </button>
@@ -112,9 +175,7 @@ function Home() {
    ========================= */
 function PostersPage() {
   const [selectedPoster, setSelectedPoster] = useState(null);
-  const today = useMemo(() => {
-    const d = new Date(); d.setHours(0,0,0,0); return d;
-  }, []);
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
 
   return (
     <>
@@ -138,6 +199,8 @@ function PostersPage() {
         <div className="poster-list">
           {AFFICHES.map((p, i) => {
             const isPast = p.date < today;
+            const docUrl = DOCS_MAP.get(p.base) || null;
+
             return (
               <div
                 key={i}
@@ -147,13 +210,34 @@ function PostersPage() {
                 title="Clique pour agrandir"
               >
                 <img src={p.src} alt={p.title || `Affiche ${i + 1}`} />
+
+                {/* Badge "Date passée" */}
                 {isPast && <div className="poster-badge">Date passée</div>}
+
+                {/* Bouton Détails (n'ouvre pas la lightbox) */}
+                <div className="poster-actions" onClick={(e)=>e.stopPropagation()}>
+                  {docUrl ? (
+                    <a
+                      className="poster-details-btn"
+                      href={docUrl}
+                      target="_blank"
+                      rel="noopener"
+                      title="Ouvrir les détails"
+                    >
+                      Détails
+                    </a>
+                  ) : (
+                    <button className="poster-details-btn disabled" disabled>
+                      Détails
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
 
-        {/* Lightbox plus petite (pas de scroll) */}
+        {/* Lightbox (clic sur l’affiche) */}
         {selectedPoster && (
           <div className="lightbox" onClick={() => setSelectedPoster(null)}>
             <div className="lightbox-content" onClick={(e)=>e.stopPropagation()}>

@@ -194,11 +194,13 @@ html {
 .poster-item {
   position: relative;
   background: #273025;
-  padding: 0.8rem 0.8rem 2.2rem;
+  padding: 0.8rem 0.8rem 2.6rem; /* un peu plus bas pour le bouton */
   border-radius: 1rem;
   box-shadow: 0 2px 20px rgba(0,0,0,0.18);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: flex-start;
   align-items: center;
   cursor: zoom-in;
 }
@@ -213,6 +215,33 @@ html {
 }
 .poster-item:hover img { transform: translateY(-1px); }
 
+/* Actions sous l'image */
+.poster-actions {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.poster-details-btn {
+  background: #f7b42c;
+  color: #232a21;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 800;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background .15s ease, transform .1s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.poster-details-btn:hover { background: #ffd684; transform: translateY(-1px); }
+.poster-details-btn.disabled {
+  background: #8a8a8a;
+  color: #222;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 /* Affiches passées en N&B */
 .poster-item.past img { filter: grayscale(100%); }
 .poster-item.past:hover img { filter: grayscale(0%); }
@@ -221,7 +250,7 @@ html {
 .poster-badge {
   position: absolute;
   left: 50%;
-  bottom: 8px;
+  bottom: 42px; /* remonte au-dessus du bouton */
   transform: translateX(-50%);
   background: #101413;
   color: #ddd;
@@ -241,7 +270,7 @@ html {
 }
 
 /* ====================
-   Lightbox plein écran (moins zoomée + scroll)
+   Lightbox (moins zoomée + scroll)
    ==================== */
 .lightbox {
   position: fixed;
@@ -252,23 +281,21 @@ html {
   align-items: center;
   z-index: 999;
   cursor: zoom-out;
-  padding: 2vh 2vw;
-  overflow: auto; /* permet de défiler */
+  padding: 4vh 4vw;
+  overflow: auto;
 }
-
 .lightbox-content {
   position: relative;
-  max-width: 60vw;   /* moins large */
-  max-height: 85vh;  /* moins haut */
+  max-width: 45vw;
+  max-height: 70vh;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: auto;
   border-radius: 12px;
 }
-
 .lightbox-content img {
-  width: 100%;
+  width: auto;
   height: auto;
   max-width: 100%;
   max-height: 100%;
@@ -277,7 +304,6 @@ html {
   box-shadow: 0 0 20px rgba(0,0,0,0.6);
   cursor: default;
 }
-
 .lightbox-close {
   position: sticky;
   top: 8px;
@@ -295,12 +321,11 @@ html {
   box-shadow: 0 2px 10px rgba(0,0,0,0.4);
 }
 .lightbox-close:hover { background: #ffd684; }
-
+@media (max-width: 1200px) {
+  .lightbox-content { max-width: 55vw; max-height: 72vh; }
+}
 @media (max-width: 640px) {
-  .lightbox-content {
-    max-width: 88vw;
-    max-height: 86vh;
-  }
+  .lightbox-content { max-width: 90vw; max-height: 78vh; }
 }
 
 /* ====================
@@ -346,6 +371,7 @@ html {
   box-shadow: 0 0 0 3px rgba(128,205,243,0.15);
 }
 
+/* textarea */
 .form-row textarea {
   resize: vertical;
   min-height: 140px;
