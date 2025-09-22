@@ -11,7 +11,7 @@ const imageModules = import.meta.glob(
   { eager: true }
 );
 
-/* ===== Import documents liés (en URL pour éviter les erreurs de build) ===== */
+/* ===== Import documents liés (en URL) ===== */
 const docModulesSameDir = import.meta.glob(
   "./assets/spectacle/affiches/*.{pdf,odt,docx,txt}",
   { eager: true, as: "url" }
@@ -21,6 +21,7 @@ const docModulesSubDir = import.meta.glob(
   { eager: true, as: "url" }
 );
 
+/* ===== Helpers ===== */
 function parseDateFromFilename(base) {
   let m = base.match(/^(\d{4})[-_.](\d{2})[-_.](\d{2})/);
   if (m) return new Date(`${m[1]}-${m[2]}-${m[3]}`);
@@ -51,7 +52,7 @@ const AFFICHES = Object.entries(imageModules)
   .filter((a) => a.date && !isNaN(a.date))
   .sort((a, b) => b.date - a.date);
 
-/* Map base -> meilleur doc (priorité: pdf > odt > docx > txt) */
+/* Map base -> meilleur doc */
 const DOC_PRIORITY = ["pdf", "odt", "docx", "txt"];
 function buildDocsMap() {
   const all = { ...docModulesSameDir, ...docModulesSubDir };
@@ -75,7 +76,100 @@ function buildDocsMap() {
 const DOCS_MAP = buildDocsMap();
 
 /* =========================
-   Accueil
+   Navbar (réutilisable)
+   ========================= */
+function Navbar({ variant = "home" }) {
+  const [open, setOpen] = useState(false);
+
+  // Fermer avec Echap
+  useEffect(() => {
+    function onKey(e) { if (e.key === "Escape") setOpen(false); }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Empêche le scroll du body quand le menu est ouvert
+  useEffect(() => {
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
+  // ferme au resize si on repasse en desktop
+  useEffect(() => {
+    function onResize() {
+      if (window.innerWidth >= 860 && open) setOpen(false);
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open]);
+
+  const linksHome = (
+    <>
+      <li><a onClick={() => setOpen(false)} href="#accueil">Accueil</a></li>
+      <li><a onClick={() => setOpen(false)} href="#spectacles">Spectacles</a></li>
+      <li><a onClick={() => setOpen(false)} href="#animations">Animations forestières</a></li>
+      <li><a onClick={() => setOpen(false)} href="#contact">Contact</a></li>
+    </>
+  );
+
+  const linksPosters = (
+    <>
+      <li><Link onClick={() => setOpen(false)} to="/">Accueil</Link></li>
+      <li><a onClick={() => setOpen(false)} href="/#spectacles">Spectacles</a></li>
+      <li><a onClick={() => setOpen(false)} href="/#animations">Animations forestières</a></li>
+      <li><a onClick={() => setOpen(false)} href="/#contact">Contact</a></li>
+    </>
+  );
+
+  return (
+    <>
+      <nav className={`navbar ${open ? "is-open" : ""}`}>
+        <div className="nav-left">L’amitié des veillées</div>
+
+        <ul className="nav-right desktop-menu">
+          {variant === "home" ? linksHome : linksPosters}
+        </ul>
+
+        {/* Burger */}
+        <button
+          className={`burger ${open ? "open" : ""}`}
+          aria-label="Ouvrir le menu"
+          aria-expanded={open}
+          aria-controls="mobile-menu"
+          onClick={() => setOpen(!open)}
+        >
+          <span className="bar" />
+          <span className="bar" />
+          <span className="bar" />
+        </button>
+      </nav>
+
+      {/* Menu mobile plein écran */}
+      <div
+        id="mobile-menu"
+        className={`mobile-menu ${open ? "show" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobileMenuTitle"
+        onClick={() => setOpen(false)}
+      >
+        <div className="mobile-menu-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="mobile-menu-header">
+            <div id="mobileMenuTitle" className="mobile-title">Menu</div>
+            <button className="mobile-close" onClick={() => setOpen(false)} aria-label="Fermer">✕</button>
+          </div>
+          <ul className="mobile-links">
+            {variant === "home" ? linksHome : linksPosters}
+          </ul>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* =========================
+   Accueil / Home
    ========================= */
 function Home() {
   const navigate = useNavigate();
@@ -87,15 +181,7 @@ function Home() {
 
   return (
     <div className="app">
-      <nav className="navbar">
-        <div className="nav-left">L’amitié des veillées</div>
-        <ul className="nav-right">
-          <li><a href="#accueil">Accueil</a></li>
-          <li><a href="#spectacles">Spectacles</a></li>
-          <li><a href="#animations">Animations forestières</a></li>
-          <li><a href="#contact">Contact</a></li>
-        </ul>
-      </nav>
+      <Navbar variant="home" />
 
       <section id="accueil" className="section accueil">
         <img src={portrait} alt="Portrait" className="portrait" />
@@ -148,7 +234,7 @@ function PostersPage() {
   const [docText, setDocText] = useState("");
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
 
-  // Charge TXT si besoin
+  // Charger TXT si besoin
   useEffect(() => {
     if (docViewer?.ext === "txt" && docViewer?.url) {
       fetch(docViewer.url)
@@ -162,21 +248,13 @@ function PostersPage() {
 
   function openDetails(base, title) {
     const found = DOCS_MAP.get(base);
-    if (!found) return; // bouton désactivé côté UI de toute façon
+    if (!found) return;
     setDocViewer({ url: found.url, ext: found.ext, title: title || base });
   }
 
   return (
     <>
-      <nav className="navbar">
-        <div className="nav-left">L’amitié des veillées</div>
-        <ul className="nav-right">
-          <li><Link to="/">Accueil</Link></li>
-          <li><a href="/#spectacles">Spectacles</a></li>
-          <li><a href="/#animations">Animations forestières</a></li>
-          <li><a href="/#contact">Contact</a></li>
-        </ul>
-      </nav>
+      <Navbar variant="posters" />
 
       <section className="section posters-page">
         <h2>Affiches (du plus récent au plus ancien)</h2>
@@ -199,11 +277,8 @@ function PostersPage() {
                 title="Clique pour agrandir"
               >
                 <img src={p.src} alt={p.title || `Affiche ${i + 1}`} />
+                {isPast && <div className="poster-badge">Date passée</div>}
 
-                {/* Badge en haut-gauche (ne chevauche plus le bouton) */}
-                {isPast && <div className="poster-badge tl">Date passée</div>}
-
-                {/* Bouton Détails (n'ouvre pas la lightbox) */}
                 <div className="poster-actions" onClick={(e)=>e.stopPropagation()}>
                   {doc ? (
                     <button
@@ -234,7 +309,7 @@ function PostersPage() {
           </div>
         )}
 
-        {/* Lightbox document (ouvre dans le site) */}
+        {/* Lightbox document */}
         {docViewer && (
           <div className="docbox" onClick={() => setDocViewer(null)}>
             <div className="docbox-content" onClick={(e)=>e.stopPropagation()}>
@@ -245,27 +320,16 @@ function PostersPage() {
 
               <div className="docbox-body">
                 {docViewer.ext === "pdf" && (
-                  <iframe
-                    className="doc-frame"
-                    src={docViewer.url}
-                    title="Détails PDF"
-                  />
+                  <iframe className="doc-frame" src={docViewer.url} title="Détails PDF" />
                 )}
-
                 {docViewer.ext === "txt" && (
                   <pre className="doc-text">{docText}</pre>
                 )}
-
                 {(docViewer.ext === "docx" || docViewer.ext === "odt") && (
                   <div className="doc-fallback">
                     <p>
-                      Cet élément est un fichier <b>{docViewer.ext.toUpperCase()}</b> qui
-                      ne peut pas être affiché directement dans le navigateur.
-                    </p>
-                    <p>
-                      👉 Ajoute une version <b>PDF</b> portant le même nom de fichier
-                      dans <code>src/assets/spectacle/affiches/</code> ou
-                      <code>.../details/</code> pour un affichage intégré.
+                      Ce fichier <b>{docViewer.ext.toUpperCase()}</b> ne peut pas être affiché directement dans le navigateur.
+                      Ajoute une version <b>PDF</b> avec le même nom pour un affichage intégré.
                     </p>
                     <a className="doc-open-link" href={docViewer.url} target="_blank" rel="noopener">
                       Ouvrir dans un onglet
@@ -415,6 +479,9 @@ function ContactSection() {
   );
 }
 
+/* =========================
+   Root
+   ========================= */
 export default function RootApp() {
   return (
     <Router>
